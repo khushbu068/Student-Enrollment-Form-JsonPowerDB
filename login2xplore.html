@@ -20,7 +20,7 @@
         <label for="rollNo">Roll No:</label>
         <label id="rollNoMsg"></label>
       </span>
-      <input type="text" class="form-control" name="rollNo" id="rollNo" placeholder="Enter Roll No" required>
+      <input type="text" class="form-control" name="rollNo" id="rollNo" placeholder="Enter Roll No" required onblur="checkRollNo()">
     </div>
 
     <div class="form-group">
@@ -48,66 +48,31 @@
       <input type="date" class="form-control" id="enrollDate" name="enrollDate">
     </div>
 
-    <input type="button" class="btn btn-primary" id="studentSave" value="Save" onclick="saveStudent();">
+    <input type="button" class="btn btn-primary" id="studentSave" value="Save" onclick="saveStudent();" disabled>
+    <input type="button" class="btn btn-success" id="studentUpdate" value="Update" onclick="updateStudent();" disabled>
+    <input type="button" class="btn btn-default" id="studentReset" value="Reset" onclick="resetForm();" disabled>
   </form>
 </div>
 
 <script>
-  $("#rollNo").focus();
+  const connToken = "90935038|-31949209455475880|90958909";
+  const dbName = "SCHOOL-DB";
+  const relName = "STUDENT-TABLE";
+  const baseUrl = "http://api.login2explore.com:5577";
+  const getByKeyUrl = "/api/irl";
+  const putUrl = "/api/iml";
+  const updateUrl = "/api/iml";
+  let currentRecordNo = null;
 
-  function validateAndGetFormData() {
-    let rollNo = $("#rollNo").val();
-    if (rollNo === "") {
-      alert("Roll No is required");
-      $("#rollNo").focus();
-      return "";
-    }
-
-    let fullName = $("#fullName").val();
-    if (fullName === "") {
-      alert("Full Name is required");
-      $("#fullName").focus();
-      return "";
-    }
-
-    let studentClass = $("#class").val();
-    if (studentClass === "") {
-      alert("Class is required");
-      $("#class").focus();
-      return "";
-    }
-
-    let birthDate = $("#birthDate").val();
-    if (birthDate === "") {
-      alert("Birth Date is required");
-      $("#birthDate").focus();
-      return "";
-    }
-
-    let address = $("#address").val();
-    if (address === "") {
-      alert("Address is required");
-      $("#address").focus();
-      return "";
-    }
-
-    let enrollDate = $("#enrollDate").val();
-    if (enrollDate === "") {
-      alert("Enrollment Date is required");
-      $("#enrollDate").focus();
-      return "";
-    }
-
-    let jsonStrObj = {
-      rollNo: rollNo,
-      fullName: fullName,
-      class: studentClass,
-      birthDate: birthDate,
-      address: address,
-      enrollDate: enrollDate
-    };
-
-    return JSON.stringify(jsonStrObj);
+  function createGET_BY_KEYRequest(connToken, dbName, relName, keyName, keyVal) {
+    return JSON.stringify({
+      token: connToken,
+      dbName: dbName,
+      cmd: "GET_BY_KEY",
+      rel: relName,
+      key: keyName,
+      val: keyVal
+    });
   }
 
   function createPUTRequest(connToken, jsonObj, dbName, relName) {
@@ -120,47 +85,121 @@
     });
   }
 
-  function executeCommand(reqString, dbBaseUrl, apiEndPointUrl) {
-    let url = dbBaseUrl + apiEndPointUrl;
-    let jsonObj = "";
-
-    $.post(url, reqString, function(result) {
-      jsonObj = result;
-    }).fail(function(result) {
-      jsonObj = JSON.parse(result.responseText);
+  function createUPDATERecordRequest(connToken, jsonObj, dbName, relName, recNo) {
+    return JSON.stringify({
+      token: connToken,
+      dbName: dbName,
+      cmd: "UPDATE",
+      rel: relName,
+      record: recNo,
+      jsonStr: JSON.parse(jsonObj)
     });
-
-    return jsonObj;
   }
 
-  function resetForm() {
-    $("#rollNo").val("");
-    $("#fullName").val("");
-    $("#class").val("");
-    $("#birthDate").val("");
-    $("#address").val("");
-    $("#enrollDate").val("");
-    $("#rollNo").focus();
+  function executeCommand(reqString, apiEndPointUrl) {
+    let url = baseUrl + apiEndPointUrl;
+    let result = "";
+    $.ajax({
+      url: url,
+      type: "POST",
+      data: reqString,
+      async: false,
+      success: function(response) {
+        result = response;
+      },
+      error: function(response) {
+        result = response.responseText ? JSON.parse(response.responseText) : response;
+      }
+    });
+    return result;
+  }
+
+  function validateAndGetFormData() {
+    let rollNo = $("#rollNo").val();
+    let fullName = $("#fullName").val();
+    let studentClass = $("#class").val();
+    let birthDate = $("#birthDate").val();
+    let address = $("#address").val();
+    let enrollDate = $("#enrollDate").val();
+
+    if (!rollNo || !fullName || !studentClass || !birthDate || !address || !enrollDate) {
+      alert("All fields are required.");
+      return "";
+    }
+
+    return JSON.stringify({
+      rollNo,
+      fullName,
+      class: studentClass,
+      birthDate,
+      address,
+      enrollDate
+    });
+  }
+
+  function checkRollNo() {
+    let rollNo = $("#rollNo").val();
+    if (rollNo === "") {
+      alert("Roll No is required.");
+      return;
+    }
+
+    let getReq = createGET_BY_KEYRequest(connToken, dbName, relName, "rollNo", rollNo);
+    let resultObj = executeCommand(getReq, getByKeyUrl);
+
+    if (resultObj.data === undefined) {
+      // Not found
+      $("#studentSave").prop("disabled", false);
+      $("#studentUpdate").prop("disabled", true);
+      $("#studentReset").prop("disabled", false);
+      $("#rollNo").prop("disabled", false);
+      $("#fullName").focus();
+    } else {
+      // Found - Fill data
+      let record = resultObj.data.record;
+      currentRecordNo = resultObj.data.rec_no;
+      $("#fullName").val(record.fullName);
+      $("#class").val(record.class);
+      $("#birthDate").val(record.birthDate);
+      $("#address").val(record.address);
+      $("#enrollDate").val(record.enrollDate);
+
+      $("#rollNo").prop("disabled", true);
+      $("#studentSave").prop("disabled", true);
+      $("#studentUpdate").prop("disabled", false);
+      $("#studentReset").prop("disabled", false);
+      $("#fullName").focus();
+    }
   }
 
   function saveStudent() {
     let jsonStr = validateAndGetFormData();
-    if (jsonStr === "") {
-      return;
-    }
+    if (jsonStr === "") return;
 
-    let putReqStr = createPUTRequest("90935038|-31949209455475880|90958909",
-      jsonStr, "SCHOOL-DB", "STUDENT-TABLE");
-
-    alert("Request: " + putReqStr);
-
-    jQuery.ajaxSetup({async: false});
-    let resultObj = executeCommand(putReqStr,
-      "http://api.login2explore.com:5577", "/api/iml");
-    jQuery.ajaxSetup({async: true});
-
-    alert("Response: " + JSON.stringify(resultObj));
+    let putReqStr = createPUTRequest(connToken, jsonStr, dbName, relName);
+    let resultObj = executeCommand(putReqStr, putUrl);
+    alert("Student record saved successfully.");
     resetForm();
+  }
+
+  function updateStudent() {
+    let jsonStr = validateAndGetFormData();
+    if (jsonStr === "") return;
+
+    let updateReqStr = createUPDATERecordRequest(connToken, jsonStr, dbName, relName, currentRecordNo);
+    let resultObj = executeCommand(updateReqStr, updateUrl);
+    alert("Student record updated successfully.");
+    resetForm();
+  }
+
+  function resetForm() {
+    $("#studentForm")[0].reset();
+    $("#rollNo").prop("disabled", false);
+    $("#studentSave").prop("disabled", true);
+    $("#studentUpdate").prop("disabled", true);
+    $("#studentReset").prop("disabled", true);
+    $("#rollNo").focus();
+    currentRecordNo = null;
   }
 </script>
 </body>
