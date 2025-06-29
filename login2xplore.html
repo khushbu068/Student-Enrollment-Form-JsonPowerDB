@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Student Enrollment Form</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet"
+        href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script
+        src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script
+        src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <h2>Student Enrollment Form</h2>
+  <form id="studentForm" method="post">
+    <div class="form-group">
+      <span>
+        <label for="rollNo">Roll No:</label>
+        <label id="rollNoMsg"></label>
+      </span>
+      <input type="text" class="form-control" name="rollNo" id="rollNo" placeholder="Enter Roll No" required>
+    </div>
+
+    <div class="form-group">
+      <label for="fullName">Full Name:</label>
+      <input type="text" class="form-control" id="fullName" placeholder="Enter Full Name" name="fullName">
+    </div>
+
+    <div class="form-group">
+      <label for="class">Class:</label>
+      <input type="text" class="form-control" id="class" placeholder="Enter Class" name="class">
+    </div>
+
+    <div class="form-group">
+      <label for="birthDate">Birth Date:</label>
+      <input type="date" class="form-control" id="birthDate" name="birthDate">
+    </div>
+
+    <div class="form-group">
+      <label for="address">Address:</label>
+      <input type="text" class="form-control" id="address" placeholder="Enter Address" name="address">
+    </div>
+
+    <div class="form-group">
+      <label for="enrollDate">Enrollment Date:</label>
+      <input type="date" class="form-control" id="enrollDate" name="enrollDate">
+    </div>
+
+    <input type="button" class="btn btn-primary" id="studentSave" value="Save" onclick="saveStudent();">
+  </form>
+</div>
+
+<script>
+  $("#rollNo").focus();
+
+  function validateAndGetFormData() {
+    let rollNo = $("#rollNo").val();
+    if (rollNo === "") {
+      alert("Roll No is required");
+      $("#rollNo").focus();
+      return "";
+    }
+
+    let fullName = $("#fullName").val();
+    if (fullName === "") {
+      alert("Full Name is required");
+      $("#fullName").focus();
+      return "";
+    }
+
+    let studentClass = $("#class").val();
+    if (studentClass === "") {
+      alert("Class is required");
+      $("#class").focus();
+      return "";
+    }
+
+    let birthDate = $("#birthDate").val();
+    if (birthDate === "") {
+      alert("Birth Date is required");
+      $("#birthDate").focus();
+      return "";
+    }
+
+    let address = $("#address").val();
+    if (address === "") {
+      alert("Address is required");
+      $("#address").focus();
+      return "";
+    }
+
+    let enrollDate = $("#enrollDate").val();
+    if (enrollDate === "") {
+      alert("Enrollment Date is required");
+      $("#enrollDate").focus();
+      return "";
+    }
+
+    let jsonStrObj = {
+      rollNo: rollNo,
+      fullName: fullName,
+      class: studentClass,
+      birthDate: birthDate,
+      address: address,
+      enrollDate: enrollDate
+    };
+
+    return JSON.stringify(jsonStrObj);
+  }
+
+  function createPUTRequest(connToken, jsonObj, dbName, relName) {
+    return JSON.stringify({
+      token: connToken,
+      dbName: dbName,
+      cmd: "PUT",
+      rel: relName,
+      jsonStr: JSON.parse(jsonObj)
+    });
+  }
+
+  function executeCommand(reqString, dbBaseUrl, apiEndPointUrl) {
+    let url = dbBaseUrl + apiEndPointUrl;
+    let jsonObj = "";
+
+    $.post(url, reqString, function(result) {
+      jsonObj = result;
+    }).fail(function(result) {
+      jsonObj = JSON.parse(result.responseText);
+    });
+
+    return jsonObj;
+  }
+
+  function resetForm() {
+    $("#rollNo").val("");
+    $("#fullName").val("");
+    $("#class").val("");
+    $("#birthDate").val("");
+    $("#address").val("");
+    $("#enrollDate").val("");
+    $("#rollNo").focus();
+  }
+
+  function saveStudent() {
+    let jsonStr = validateAndGetFormData();
+    if (jsonStr === "") {
+      return;
+    }
+
+    let putReqStr = createPUTRequest("90935038|-31949209455475880|90958909",
+      jsonStr, "SCHOOL-DB", "STUDENT-TABLE");
+
+    alert("Request: " + putReqStr);
+
+    jQuery.ajaxSetup({async: false});
+    let resultObj = executeCommand(putReqStr,
+      "http://api.login2explore.com:5577", "/api/iml");
+    jQuery.ajaxSetup({async: true});
+
+    alert("Response: " + JSON.stringify(resultObj));
+    resetForm();
+  }
+</script>
+</body>
+</html>
